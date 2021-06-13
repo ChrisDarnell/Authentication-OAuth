@@ -4,8 +4,8 @@ const express = require("express");
 const ejs = require("ejs");
 const app = express();
 const mongoose = require("mongoose");
-const md5 = require("md5");
-
+const bcrypt = require('bcryptjs');
+const salt = bcrypt.genSaltSync(10);
 
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
@@ -14,6 +14,8 @@ app.use(express.urlencoded({
     extended: true
 }));
 app.use(express.static("public"));
+
+
 
 // Mongoose
 
@@ -45,33 +47,35 @@ app.get("/register", (req, res) => {
     res.render("register");
 });
 
-app.post("/register", (req, res) => {
+app.post("/register", function (req, res) {
+
+    const hash = bcrypt.hashSync(req.body.password, salt);
+
     const newUser = new User({
-        email: req.body.username,
-        password: md5(req.body.password)
+        email: req.body.email,
+        password: hash
     });
 
-    newUser.save((err) => {
+    newUser.save(function (err) {
         if (err) {
             console.log(err);
         } else {
             res.render("secrets");
         }
     });
+
 });
 
-app.post("/login", (req, res) => {
-    const username = req.body.username;
-    const password = md5(req.body.password);
+app.post("/login", function (req, res) {
 
     User.findOne({
-        email: username
-    }, (err, foundUser) => {
+        email: req.body.email
+    }, function (err, foundUser) {
         if (err) {
             console.log(err);
         } else {
             if (foundUser) {
-                if (foundUser.password === password) {
+                if (bcrypt.compareSync(req.body.password, foundUser.password)) {
                     res.render("secrets");
                 }
             }
@@ -81,8 +85,7 @@ app.post("/login", (req, res) => {
 
 
 
-
-
+// Listen
 
 app.listen(3000, () => {
     console.log("Server started on port 3000");
